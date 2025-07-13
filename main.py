@@ -71,6 +71,64 @@ if df is not None:
         locations = locations[locations != '']
         
         if len(locations) > 0:
+            # Create geographic map if coordinates are available
+            if 'coordinates (lat,lng)' in df.columns:
+                st.subheader("Geographic Map of Inscriptions")
+                
+                # Parse coordinates and create map data
+                map_data = []
+                for idx, row in df.iterrows():
+                    coords = row.get('coordinates (lat,lng)')
+                    if pd.notna(coords) and coords != '':
+                        try:
+                            # Parse coordinates (format: "lat,lng")
+                            lat, lng = coords.split(',')
+                            lat, lng = float(lat.strip()), float(lng.strip())
+                            
+                            map_data.append({
+                                'latitude': lat,
+                                'longitude': lng,
+                                'location': row.get('modern find spot', 'Unknown'),
+                                'ancient_location': row.get('ancient find spot', 'Unknown'),
+                                'country': row.get('country', 'Unknown'),
+                                'transcription': str(row.get('transcription', ''))[:100] + '...' if len(str(row.get('transcription', ''))) > 100 else str(row.get('transcription', ''))
+                            })
+                        except:
+                            continue
+                
+                if map_data:
+                    map_df = pd.DataFrame(map_data)
+                    
+                    # Create the map
+                    fig_map = px.scatter_mapbox(
+                        map_df,
+                        lat='latitude',
+                        lon='longitude',
+                        hover_name='location',
+                        hover_data={
+                            'ancient_location': True,
+                            'country': True,
+                            'transcription': True,
+                            'latitude': False,
+                            'longitude': False
+                        },
+                        zoom=3,
+                        title="Geographic Distribution of Liberalita Inscriptions"
+                    )
+                    
+                    fig_map.update_layout(
+                        mapbox_style="open-street-map",
+                        height=600,
+                        margin={"r":0,"t":0,"l":0,"b":0}
+                    )
+                    
+                    st.plotly_chart(fig_map, use_container_width=True)
+                    
+                    # Show map statistics
+                    st.info(f"📍 Showing {len(map_df)} inscriptions with coordinate data")
+                else:
+                    st.warning("No valid coordinate data found for mapping")
+            
             # Create a simple frequency map
             location_counts = Counter(locations)
             
@@ -213,7 +271,8 @@ if df is not None:
                            x='Column', 
                            y='Completeness (%)',
                            title="Data Completeness by Column")
-                fig.update_xaxis(tickangle=45)
+                if len(completeness_df) > 0:
+                    fig.update_xaxis(tickangle=45)
                 st.plotly_chart(fig, use_container_width=True)
         
         # Word analysis in transcriptions
