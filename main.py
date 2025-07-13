@@ -145,12 +145,16 @@ if df is not None:
             
             with col2:
                 st.subheader("Top Locations")
-                fig = px.bar(location_df.head(10), 
-                           x='Count', 
-                           y='Location',
-                           orientation='h',
-                           title="Top 10 Locations by Inscription Count")
-                st.plotly_chart(fig, use_container_width=True)
+                if len(location_df) > 0:
+                    fig = px.bar(location_df.head(10), 
+                               x='Count', 
+                               y='Location',
+                               orientation='h',
+                               title="Top 10 Locations by Inscription Count")
+                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No location data available for chart")
             
             # Search for specific locations
             st.subheader("Search Locations")
@@ -297,6 +301,8 @@ if df is not None:
                            y='Word',
                            orientation='h',
                            title="Most Frequent Words in Transcriptions")
+                if len(word_df) > 0:
+                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig, use_container_width=True)
 
 else:
