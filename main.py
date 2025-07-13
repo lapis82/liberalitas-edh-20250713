@@ -64,7 +64,7 @@ if df is not None:
     tab1, tab2, tab3 = st.tabs(["📍 Location Map", "📜 Transcriptions", "📊 Statistics"])
     
     with tab1:
-        st.header("Geographic Distribution of inscriptions including 'Liberalitas'")
+        st.header("Geographic Distribution of inscriptions including the word 'Liberalitas'")
         
         # Clean and process location data
         locations = df['modern find spot'].dropna().str.strip()
