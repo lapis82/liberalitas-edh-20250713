@@ -271,13 +271,15 @@ if df is not None:
                 }
                 completeness_df['Column'] = completeness_df['Column'].map(column_names)
                 
-                fig = px.bar(completeness_df, 
-                           x='Column', 
-                           y='Completeness (%)',
-                           title="Data Completeness by Column")
                 if len(completeness_df) > 0:
+                    fig = px.bar(completeness_df, 
+                               x='Column', 
+                               y='Completeness (%)',
+                               title="Data Completeness by Column")
                     fig.update_xaxis(tickangle=45)
-                st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No data available for completeness chart")
         
         # Word analysis in transcriptions
         if 'transcription' in df.columns:
