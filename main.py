@@ -18,29 +18,40 @@ st.markdown("Explore inscriptions containing 'liberalita' from the Epigraphic Da
 
 # Load data function
 @st.cache_data
-def load_data():
+def load_data(uploaded_file):
     """Load and preprocess the CSV data"""
     try:
-        # Try to load the CSV file
-        df = pd.read_csv('liberalita_edh.csv')
+        # Load the CSV file
+        df = pd.read_csv(uploaded_file)
         
-        # Handle missing location data (lines 30 and 68 - using F column as fallback)
+        # Handle missing location data (lines 30 and 68 - using column 'ancient find spot' as fallback)
         # Note: pandas uses 0-based indexing, so line 30 is index 29, line 68 is index 67
-        if len(df) > 29 and (pd.isna(df.iloc[29]['G']) or df.iloc[29]['G'] == ''):
-            df.at[29, 'G'] = df.iloc[29]['F']
-        if len(df) > 67 and (pd.isna(df.iloc[67]['G']) or df.iloc[67]['G'] == ''):
-            df.at[67, 'G'] = df.iloc[67]['F']
+        if len(df) > 29 and (pd.isna(df.iloc[29]['modern find spot']) or df.iloc[29]['modern find spot'] == ''):
+            df.at[29, 'modern find spot'] = df.iloc[29]['ancient find spot']
+        if len(df) > 67 and (pd.isna(df.iloc[67]['modern find spot']) or df.iloc[67]['modern find spot'] == ''):
+            df.at[67, 'modern find spot'] = df.iloc[67]['ancient find spot']
         
         return df
-    except FileNotFoundError:
-        st.error("CSV file 'liberalita_edh.csv' not found. Please make sure the file is in the same directory as this app.")
-        return None
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
 
+# File upload widget
+st.sidebar.header("📁 Upload Data")
+uploaded_file = st.sidebar.file_uploader(
+    "Choose your liberalita_edh.csv file",
+    type=['csv'],
+    help="Upload your CSV file containing the liberalita inscriptions data"
+)
+
 # Load the data
-df = load_data()
+df = None
+if uploaded_file is not None:
+    df = load_data(uploaded_file)
+    if df is not None:
+        st.sidebar.success(f"✅ File loaded successfully! ({len(df)} rows)")
+else:
+    st.info("👈 Please upload your CSV file using the sidebar to get started!")
 
 if df is not None:
     # Sidebar for filters
@@ -56,7 +67,7 @@ if df is not None:
         st.header("Geographic Distribution of Liberalita Inscriptions")
         
         # Clean and process location data
-        locations = df['G'].dropna().str.strip()
+        locations = df['modern find spot'].dropna().str.strip()
         locations = locations[locations != '']
         
         if len(locations) > 0:
@@ -95,14 +106,14 @@ if df is not None:
                 else:
                     st.info("No locations found matching your search.")
         else:
-            st.warning("No location data available in column G.")
+            st.warning("No location data available in 'modern find spot' column.")
     
     with tab2:
         st.header("Inscription Transcriptions")
         
         # Display transcriptions with location info
-        transcriptions = df[['B', 'G']].copy()
-        transcriptions.columns = ['Transcription', 'Location']
+        transcriptions = df[['transcription', 'modern find spot', 'ancient find spot', 'country', 'province / Italic region']].copy()
+        transcriptions.columns = ['Transcription', 'Modern Location', 'Ancient Location', 'Country', 'Province']
         
         # Remove empty transcriptions
         transcriptions = transcriptions.dropna(subset=['Transcription'])
@@ -125,19 +136,43 @@ if df is not None:
             # Display transcriptions
             st.subheader("All Transcriptions")
             for idx, row in transcriptions_to_show.iterrows():
-                with st.expander(f"Inscription {idx + 1} - {row['Location']}"):
-                    st.write("**Location:**", row['Location'])
+                # Create a more detailed title for each inscription
+                title_parts = []
+                if pd.notna(row['Modern Location']) and row['Modern Location'] != '':
+                    title_parts.append(row['Modern Location'])
+                if pd.notna(row['Country']) and row['Country'] != '':
+                    title_parts.append(row['Country'])
+                
+                title = f"Inscription {idx + 1}"
+                if title_parts:
+                    title += f" - {', '.join(title_parts)}"
+                
+                with st.expander(title):
+                    # Location information
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if pd.notna(row['Modern Location']) and row['Modern Location'] != '':
+                            st.write("**Modern Location:**", row['Modern Location'])
+                        if pd.notna(row['Ancient Location']) and row['Ancient Location'] != '':
+                            st.write("**Ancient Location:**", row['Ancient Location'])
+                    with col2:
+                        if pd.notna(row['Country']) and row['Country'] != '':
+                            st.write("**Country:**", row['Country'])
+                        if pd.notna(row['Province']) and row['Province'] != '':
+                            st.write("**Province:**", row['Province'])
+                    
+                    # Transcription
                     st.write("**Transcription:**")
                     st.text(row['Transcription'])
                     
                     # Highlight "liberalita" in the text
                     if pd.notna(row['Transcription']):
-                        highlighted = re.sub(r'(liberalita)', r'**\1**', 
+                        highlighted = re.sub(r'(liberalita[e]?)', r'**\1**', 
                                            str(row['Transcription']), flags=re.IGNORECASE)
                         st.markdown("**Highlighted text:**")
                         st.markdown(highlighted)
         else:
-            st.warning("No transcription data available in column B.")
+            st.warning("No transcription data available in 'transcription' column.")
     
     with tab3:
         st.header("Statistics and Analysis")
@@ -147,35 +182,44 @@ if df is not None:
         with col1:
             st.subheader("Dataset Overview")
             st.metric("Total Inscriptions", len(df))
-            st.metric("Inscriptions with Locations", len(df['G'].dropna()))
-            st.metric("Inscriptions with Transcriptions", len(df['B'].dropna()))
-            st.metric("Unique Locations", len(df['G'].dropna().unique()))
+            st.metric("Inscriptions with Modern Locations", len(df['modern find spot'].dropna()))
+            st.metric("Inscriptions with Transcriptions", len(df['transcription'].dropna()))
+            st.metric("Unique Modern Locations", len(df['modern find spot'].dropna().unique()))
+            st.metric("Countries Represented", len(df['country'].dropna().unique()))
         
         with col2:
             st.subheader("Data Completeness")
             completeness = {}
-            for col in ['B', 'G']:
+            key_columns = ['transcription', 'modern find spot', 'ancient find spot', 'country', 'province / Italic region']
+            for col in key_columns:
                 if col in df.columns:
                     completeness[col] = (df[col].notna().sum() / len(df)) * 100
             
             if completeness:
                 completeness_df = pd.DataFrame(list(completeness.items()), 
                                              columns=['Column', 'Completeness (%)'])
-                completeness_df['Column'] = completeness_df['Column'].map({
-                    'B': 'Transcriptions (B)',
-                    'G': 'Locations (G)'
-                })
+                
+                # Clean up column names for display
+                column_names = {
+                    'transcription': 'Transcriptions',
+                    'modern find spot': 'Modern Locations',
+                    'ancient find spot': 'Ancient Locations',
+                    'country': 'Countries',
+                    'province / Italic region': 'Provinces'
+                }
+                completeness_df['Column'] = completeness_df['Column'].map(column_names)
                 
                 fig = px.bar(completeness_df, 
                            x='Column', 
                            y='Completeness (%)',
                            title="Data Completeness by Column")
+                fig.update_xaxis(tickangle=45)
                 st.plotly_chart(fig, use_container_width=True)
         
         # Word analysis in transcriptions
-        if 'B' in df.columns:
+        if 'transcription' in df.columns:
             st.subheader("Word Analysis in Transcriptions")
-            all_text = ' '.join(df['B'].dropna().astype(str))
+            all_text = ' '.join(df['transcription'].dropna().astype(str))
             
             # Simple word frequency (excluding common words)
             words = re.findall(r'\b\w+\b', all_text.lower())
@@ -197,5 +241,20 @@ if df is not None:
                 st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.error("Please upload the 'liberalita_edh.csv' file to proceed.")
-    st.info("Make sure your CSV file contains columns B (transcriptions) and G (locations).")
+    st.markdown("""
+    ## Welcome to the Liberalita EDH Explorer! 🏛️
+    
+    This app helps you explore inscriptions containing 'liberalita' from the Epigraphic Database Heidelberg.
+    
+    **To get started:**
+    1. Click on the **"Browse files"** button in the sidebar
+    2. Select your `liberalita_edh.csv` file
+    3. Explore the locations and transcriptions!
+    
+    **Your CSV file should contain:**
+    - **transcription**: Transcriptions of inscriptions
+    - **modern find spot**: Modern locations where inscriptions were found
+    - **ancient find spot**: Ancient location data (used as fallback)
+    - **country**: Country information
+    - **province / Italic region**: Provincial information
+    """)
