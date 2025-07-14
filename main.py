@@ -59,40 +59,85 @@ def get_women_inscriptions():
     ]
     return women_inscriptions
 
-def is_women_inscription(hd_no, transcription):
+def is_women_inscription(hd_no, transcription, modern_spot, ancient_spot, country, province):
     """Check if this inscription is one of the women-related inscriptions from PDF"""
     women_refs = get_women_inscriptions()
     
-    # Try to match based on common patterns in the transcription or reference
-    for ref in women_refs:
-        # Check if any part of the reference appears in the transcription or HD number
-        if ref in str(transcription) or any(part in str(transcription) for part in ref.split() if len(part) > 3):
+    # Convert all inputs to strings and lowercase for comparison
+    hd_str = str(hd_no).lower() if pd.notna(hd_no) else ""
+    trans_str = str(transcription).lower() if pd.notna(transcription) else ""
+    modern_str = str(modern_spot).lower() if pd.notna(modern_spot) else ""
+    ancient_str = str(ancient_spot).lower() if pd.notna(ancient_spot) else ""
+    country_str = str(country).lower() if pd.notna(country) else ""
+    province_str = str(province).lower() if pd.notna(province) else ""
+    
+    # Specific location-based detection for the 14 inscriptions from PDF
+    women_locations = [
+        # From PDF data - matching location patterns
+        ("castulo", "hispania"),  # #1 CILA 03-01
+        ("seressitanum", "africa"),  # #2 CIL VIII 937 
+        ("vaga", "africa"),  # #3 CIL VIII 1223
+        ("thugga", "africa"),  # #4 CIL VIII 1495
+        ("thagaste", "numidia"),  # #5 CIL VIII 5142
+        ("calama", "africa"),  # #6,7 CIL VIII 5365, 5366
+        ("ziqua", "africa"),  # #8 CIL VIII 10523
+        ("muzuca", "africa"),  # #9 CIL VIII 12058
+        ("uchi maius", "africa"),  # #10 CIL VIII 26273
+        ("catellum", "numidia"),  # #11 IL Alg 02-03 10120
+        ("thibaris", "africa"),  # #12 IL Afr 511
+        ("cora", "latium"),  # #13 CIL X 6529
+        ("hippo regius", "africa"),  # #14 AE 1955-151
+        ("rome", "italy"),  # Rome inscription for women
+        ("roma", "italy"),  # Alternative spelling
+        ("lanuvium", "italy"),  # Additional check for Lanuvium (Rome area)
+        ("lanuvio", "italy")   # Modern name for Lanuvium
+    ]
+    
+    # Check location matches
+    for location, region in women_locations:
+        if (location in modern_str or location in ancient_str) and region in (country_str + " " + province_str):
             return True
     
-    # Additional checks based on content patterns from the PDF
-    if pd.notna(transcription):
-        transcription_str = str(transcription).lower()
-        # Look for specific women's names or phrases from the PDF
-        women_indicators = [
-            'corneliae marullinae',
-            'armenia auge',
-            'bebenia pauliana',
-            'surdinae',
-            'asiciae victoriae',
-            'iulia victoria',
-            'anniae aeliae',
-            'bultiae hortensiae',
-            'clodia macrina',
-            'valeriae marianillae',
-            'clodia donata',
-            'seiae potitiae',
-            'tutiae',
-            'vivia severa'
-        ]
-        
-        for indicator in women_indicators:
-            if indicator in transcription_str:
-                return True
+    # Content-based detection for women's names and specific phrases from PDF
+    women_indicators = [
+        # Women's names from PDF
+        'corneliae marullinae', 'cor(neliae) marullinae',
+        'armenia auge', 'bebenia pauliana',
+        'surdinae', 'surdin[iae',
+        'asiciae victoriae',
+        'iulia victoria', 'iul(ia victoria)',
+        'anniae aeliae', 'restitutae',
+        'bultiae hortensiae', 'surdinae antoniae',
+        'clodia macrina',
+        'valeriae marianillae', 'valeria',
+        'clodia donata', 'properti crescentis',
+        'seiae potitiae', 'consortianae',
+        'tutiae', 'lepani',
+        'vivia severa', 'phronima',
+        # Additional patterns
+        'flam(inicae)', 'flamini', 'flaminica',
+        'c(larissima) f(emina)', 'clarissima femina',
+        'matris eius', 'mater et',
+        'uxor', 'soror', 'nepti',
+        # Specific phrases from PDF
+        'pro liberalitate', 'ob liberalitatem',
+        'liberalitate sua', 'eius liberalitate',
+        'singularem liberalitatem', 'egregiam liberalitatem',
+        'assiduam liberalitatem', 'insignem liberalitatem'
+    ]
+    
+    # Check for women indicators in transcription
+    for indicator in women_indicators:
+        if indicator in trans_str:
+            return True
+    
+    # HD number patterns (some women inscriptions might have specific HD numbers)
+    if 'hd' in hd_str:
+        # Look for specific patterns that might indicate women-related inscriptions
+        # This is a fallback check
+        women_content_patterns = ['femina', 'matr', 'uxor', 'filia', 'soror']
+        if any(pattern in trans_str for pattern in women_content_patterns):
+            return True
     
     return False
 
@@ -112,7 +157,14 @@ if uploaded_file is not None:
         st.sidebar.success(f"✅ File loaded successfully! ({len(df)} rows)")
         
         # Basic info about the dataset
-        women_count = sum(is_women_inscription(row.get('hd-no.', ''), row.get('transcription', '')) for _, row in df.iterrows())
+        women_count = sum(is_women_inscription(
+            row.get('hd-no.', ''), 
+            row.get('transcription', ''),
+            row.get('modern find spot', ''),
+            row.get('ancient find spot', ''),
+            row.get('country', ''),
+            row.get('province / Italic region', '')
+        ) for _, row in df.iterrows())
         st.sidebar.info(f"📊 Dataset Overview\n"
                        f"• Total inscriptions: {len(df)}\n"
                        f"• With locations: {len(df['modern find spot'].dropna())}\n"
@@ -159,7 +211,14 @@ if df is not None:
                             lat, lng = float(lat.strip()), float(lng.strip())
                             
                             # Check if this is a women-related inscription
-                            is_women = is_women_inscription(row.get('hd-no.', ''), row.get('transcription', ''))
+                            is_women = is_women_inscription(
+                                row.get('hd-no.', ''), 
+                                row.get('transcription', ''),
+                                row.get('modern find spot', ''),
+                                row.get('ancient find spot', ''),
+                                row.get('country', ''),
+                                row.get('province / Italic region', '')
+                            )
                             
                             map_data.append({
                                 'latitude': lat,
@@ -357,7 +416,14 @@ if df is not None:
         # Filter for women-related inscriptions
         women_inscriptions = []
         for idx, row in df.iterrows():
-            if is_women_inscription(row.get('hd-no.', ''), row.get('transcription', '')):
+            if is_women_inscription(
+                row.get('hd-no.', ''), 
+                row.get('transcription', ''),
+                row.get('modern find spot', ''),
+                row.get('ancient find spot', ''),
+                row.get('country', ''),
+                row.get('province / Italic region', '')
+            ):
                 women_inscriptions.append((idx, row))
         
         if women_inscriptions:
