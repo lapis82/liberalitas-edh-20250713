@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -172,12 +173,23 @@ if df is not None:
             with col2:
                 st.subheader("Top Locations")
                 if len(location_df) > 0:
-                    fig = px.bar(location_df.head(10), 
+                    # Limit location names for better display
+                    display_df = location_df.head(10).copy()
+                    # Truncate long location names for better chart readability
+                    display_df['Location_Short'] = display_df['Location'].apply(
+                        lambda x: x[:30] + '...' if len(x) > 30 else x
+                    )
+                    
+                    fig = px.bar(display_df, 
                                x='Count', 
-                               y='Location',
+                               y='Location_Short',
                                orientation='h',
-                               title="Top 10 Locations by Inscription Count")
-                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+                               title="Top 10 Locations by Inscription Count",
+                               hover_data={'Location': True, 'Location_Short': False})
+                    fig.update_layout(
+                        yaxis={'categoryorder':'total ascending'},
+                        yaxis_title="Location"
+                    )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No location data available for chart")
@@ -321,17 +333,19 @@ if df is not None:
                 word_counts = Counter(filtered_words)
                 top_words = dict(word_counts.most_common(15))
                 
-                word_df = pd.DataFrame(list(top_words.items()), 
-                                     columns=['Word', 'Frequency'])
-                
-                fig = px.bar(word_df, 
-                           x='Frequency', 
-                           y='Word',
-                           orientation='h',
-                           title="Most Frequent Words in Transcriptions")
-                if len(word_df) > 0:
+                if top_words:
+                    word_df = pd.DataFrame(list(top_words.items()), 
+                                         columns=['Word', 'Frequency'])
+                    
+                    fig = px.bar(word_df, 
+                               x='Frequency', 
+                               y='Word',
+                               orientation='h',
+                               title="Most Frequent Words in Transcriptions")
                     fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No word frequency data available")
 
 else:
     st.markdown("""
