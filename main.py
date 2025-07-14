@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -8,14 +7,14 @@ import re
 
 # Set page configuration
 st.set_page_config(
-    page_title="*Liberalitas* EDH Inscriptions",
+    page_title="Liberalita EDH Inscriptions",
     page_icon="🏛️",
     layout="wide"
 )
 
 # Title and description
-st.title("🏛️ *Liberalitas* EDH Inscriptions")
-st.markdown("Explore inscriptions containing *Liberalitas* from the Epigraphic Database Heidelberg")
+st.title("🏛️ Liberalita EDH Inscriptions")
+st.markdown("Explore inscriptions containing 'liberalita' from the Epigraphic Database Heidelberg")
 
 # Load data function
 @st.cache_data
@@ -51,21 +50,22 @@ if uploaded_file is not None:
     df = load_data(uploaded_file)
     if df is not None:
         st.sidebar.success(f"✅ File loaded successfully! ({len(df)} rows)")
+        
+        # Basic info about the dataset
+        st.sidebar.info(f"📊 Dataset Overview\n"
+                       f"• Total inscriptions: {len(df)}\n"
+                       f"• With locations: {len(df['modern find spot'].dropna())}\n"
+                       f"• With transcriptions: {len(df['transcription'].dropna())}\n"
+                       f"• Countries: {len(df['country'].dropna().unique())}")
 else:
     st.info("👈 Please upload your CSV file using the sidebar to get started!")
 
 if df is not None:
-    # Sidebar for filters
-    st.sidebar.header("Filters")
-    
-    # Basic info about the dataset
-    st.sidebar.info(f"Total inscriptions: {len(df)}")
-    
-    # Main content area
-    tab1, tab2, tab3 = st.tabs(["📍 Location Map", "📜 Transcriptions", "📊 Statistics"])
+    # Main content area - only two tabs now
+    tab1, tab2 = st.tabs(["📍 Location Map", "📜 Transcriptions"])
     
     with tab1:
-        st.header("Geographic Distribution of *Liberalitas* Inscriptions")
+        st.header("Geographic Distribution of Liberalita Inscriptions")
         
         # Clean and process location data with country information
         location_data = []
@@ -96,13 +96,24 @@ if df is not None:
                             lat, lng = coords.split(',')
                             lat, lng = float(lat.strip()), float(lng.strip())
                             
+                            # Get full transcription and highlight liberalita in red
+                            full_transcription = str(row.get('transcription', ''))
+                            # Use HTML to color liberalita red
+                            highlighted_transcription = re.sub(
+                                r'(liberalita[e]?)', 
+                                r'<span style="color: red; font-weight: bold;">\1</span>', 
+                                full_transcription, 
+                                flags=re.IGNORECASE
+                            )
+                            
                             map_data.append({
                                 'latitude': lat,
                                 'longitude': lng,
                                 'location': row.get('modern find spot', 'Unknown'),
                                 'ancient_location': row.get('ancient find spot', 'Unknown'),
                                 'country': row.get('country', 'Unknown'),
-                                'transcription': str(row.get('transcription', ''))[:100] + '...' if len(str(row.get('transcription', ''))) > 100 else str(row.get('transcription', ''))
+                                'province': row.get('province / Italic region', 'Unknown'),
+                                'full_transcription': highlighted_transcription
                             })
                         except:
                             continue
@@ -110,43 +121,39 @@ if df is not None:
                 if map_data:
                     map_df = pd.DataFrame(map_data)
                     
-                    # Create the map with transparent hover boxes
+                    # Create the map with full transcriptions
                     fig_map = px.scatter_mapbox(
                         map_df,
                         lat='latitude',
                         lon='longitude',
                         hover_name='location',
-                        hover_data={
-                            'ancient_location': True,
-                            'country': True,
-                            'transcription': True,
-                            'latitude': False,
-                            'longitude': False
-                        },
                         zoom=3,
-                        title="Geographic Distribution of *Liberalitas* Inscriptions"
+                        title="Geographic Distribution of Liberalita Inscriptions"
                     )
                     
-                    # Make hover box transparent and improve styling
+                    # Customize hover template with full transcription
+                    fig_map.update_traces(
+                        hovertemplate="<b>%{hovertext}</b><br><br>" +
+                                      "<b>Ancient:</b> %{customdata[0]}<br>" +
+                                      "<b>Country:</b> %{customdata[1]}<br>" +
+                                      "<b>Province:</b> %{customdata[2]}<br><br>" +
+                                      "<b>Full Transcription:</b><br>%{customdata[3]}<br>" +
+                                      "<extra></extra>",
+                        customdata=map_df[['ancient_location', 'country', 'province', 'full_transcription']].values
+                    )
+                    
+                    # Make hover box semi-transparent and wider for full text
                     fig_map.update_layout(
                         mapbox_style="open-street-map",
                         height=600,
                         margin={"r":0,"t":0,"l":0,"b":0},
                         hoverlabel=dict(
-                            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent white background
-                            bordercolor="rgba(0,0,0,0.3)",    # Light border
-                            font_size=12,
-                            font_family="Arial"
+                            bgcolor="rgba(255,255,255,0.9)",
+                            bordercolor="rgba(0,0,0,0.3)",
+                            font_size=11,
+                            font_family="Arial",
+                            align="left"
                         )
-                    )
-                    
-                    # Update hover template for better formatting
-                    fig_map.update_traces(
-                        hovertemplate="<b>%{hovertext}</b><br>" +
-                                      "Ancient: %{customdata[0]}<br>" +
-                                      "Country: %{customdata[1]}<br>" +
-                                      "Transcription: %{customdata[2]}<br>" +
-                                      "<extra></extra>"  # This removes the default box
                     )
                     
                     st.plotly_chart(fig_map, use_container_width=True)
@@ -168,7 +175,7 @@ if df is not None:
             
             with col1:
                 st.subheader("Location Frequency")
-                st.dataframe(location_df.sort_values('Count', ascending=False))
+                st.dataframe(location_df.sort_values('Count', ascending=False), use_container_width=True)
             
             with col2:
                 st.subheader("Top Locations")
@@ -195,14 +202,14 @@ if df is not None:
                     st.info("No location data available for chart")
             
             # Search for specific locations
-            st.subheader("Search Locations")
+            st.subheader("🔍 Search Locations")
             search_term = st.text_input("Enter location name to search:")
             if search_term:
                 filtered_locations = location_df[
                     location_df['Location'].str.contains(search_term, case=False, na=False)
                 ]
                 if not filtered_locations.empty:
-                    st.dataframe(filtered_locations)
+                    st.dataframe(filtered_locations, use_container_width=True)
                 else:
                     st.info("No locations found matching your search.")
         else:
@@ -221,7 +228,7 @@ if df is not None:
         
         if len(transcriptions) > 0:
             # Search functionality
-            st.subheader("Search Transcriptions")
+            st.subheader("🔍 Search Transcriptions")
             search_transcription = st.text_input("Search in transcriptions:")
             
             if search_transcription:
@@ -265,87 +272,14 @@ if df is not None:
                     st.write("**Transcription:**")
                     st.text(row['Transcription'])
                     
-                    # Highlight "liberalita" in the text
+                    # Highlight "liberalita" in red
                     if pd.notna(row['Transcription']):
-                        highlighted = re.sub(r'(liberalita[e]?)', r'**\1**', 
+                        highlighted = re.sub(r'(liberalita[e]?)', r'<span style="color: red; font-weight: bold;">\1</span>', 
                                            str(row['Transcription']), flags=re.IGNORECASE)
                         st.markdown("**Highlighted text:**")
-                        st.markdown(highlighted)
+                        st.markdown(highlighted, unsafe_allow_html=True)
         else:
             st.warning("No transcription data available in 'transcription' column.")
-    
-    with tab3:
-        st.header("Statistics and Analysis")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Dataset Overview")
-            st.metric("Total Inscriptions", len(df))
-            st.metric("Inscriptions with Modern Locations", len(df['modern find spot'].dropna()))
-            st.metric("Inscriptions with Transcriptions", len(df['transcription'].dropna()))
-            st.metric("Unique Modern Locations", len(df['modern find spot'].dropna().unique()))
-            st.metric("Countries Represented", len(df['country'].dropna().unique()))
-        
-        with col2:
-            st.subheader("Data Completeness")
-            completeness = {}
-            key_columns = ['transcription', 'modern find spot', 'ancient find spot', 'country', 'province / Italic region']
-            for col in key_columns:
-                if col in df.columns:
-                    completeness[col] = (df[col].notna().sum() / len(df)) * 100
-            
-            if completeness:
-                completeness_df = pd.DataFrame(list(completeness.items()), 
-                                             columns=['Column', 'Completeness (%)'])
-                
-                # Clean up column names for display
-                column_names = {
-                    'transcription': 'Transcriptions',
-                    'modern find spot': 'Modern Locations',
-                    'ancient find spot': 'Ancient Locations',
-                    'country': 'Countries',
-                    'province / Italic region': 'Provinces'
-                }
-                completeness_df['Column'] = completeness_df['Column'].map(column_names)
-                
-                if len(completeness_df) > 0:
-                    fig = px.bar(completeness_df, 
-                               x='Column', 
-                               y='Completeness (%)',
-                               title="Data Completeness by Column")
-                    fig.update_xaxis(tickangle=45)
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("No data available for completeness chart")
-        
-        # Word analysis in transcriptions
-        if 'transcription' in df.columns:
-            st.subheader("Word Analysis in Transcriptions")
-            all_text = ' '.join(df['transcription'].dropna().astype(str))
-            
-            # Simple word frequency (excluding common words)
-            words = re.findall(r'\b\w+\b', all_text.lower())
-            common_words = {'et', 'in', 'de', 'ad', 'ex', 'cum', 'pro', 'ab', 'per', 'sub'}
-            filtered_words = [word for word in words if len(word) > 2 and word not in common_words]
-            
-            if filtered_words:
-                word_counts = Counter(filtered_words)
-                top_words = dict(word_counts.most_common(15))
-                
-                if top_words:
-                    word_df = pd.DataFrame(list(top_words.items()), 
-                                         columns=['Word', 'Frequency'])
-                    
-                    fig = px.bar(word_df, 
-                               x='Frequency', 
-                               y='Word',
-                               orientation='h',
-                               title="Most Frequent Words in Transcriptions")
-                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("No word frequency data available")
 
 else:
     st.markdown("""
