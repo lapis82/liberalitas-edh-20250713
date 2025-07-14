@@ -8,7 +8,7 @@ import re
 
 # Set page configuration
 st.set_page_config(
-    page_title="Liberalita EDH Inscriptions",
+    page_title="*Liberalitas* EDH Inscriptions",
     page_icon="🏛️",
     layout="wide"
 )
