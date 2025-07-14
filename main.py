@@ -61,6 +61,8 @@ def get_women_inscriptions():
 
 def is_women_inscription(hd_no, transcription, modern_spot, ancient_spot, country, province):
     """Check if this inscription is one of the women-related inscriptions from PDF"""
+    women_refs = get_women_inscriptions()
+    
     # Convert all inputs to strings and lowercase for comparison
     hd_str = str(hd_no).lower() if pd.notna(hd_no) else ""
     trans_str = str(transcription).lower() if pd.notna(transcription) else ""
@@ -69,85 +71,72 @@ def is_women_inscription(hd_no, transcription, modern_spot, ancient_spot, countr
     country_str = str(country).lower() if pd.notna(country) else ""
     province_str = str(province).lower() if pd.notna(province) else ""
     
-    # VERY SPECIFIC detection for the exact 15 inscriptions
-    # Using unique combinations of location + specific content to avoid false positives
+    # Specific location-based detection for the 14 inscriptions from PDF
+    women_locations = [
+        # From PDF data - matching location patterns
+        ("castulo", "hispania"),  # #1 CILA 03-01
+        ("seressitanum", "africa"),  # #2 CIL VIII 937 
+        ("vaga", "africa"),  # #3 CIL VIII 1223
+        ("thugga", "africa"),  # #4 CIL VIII 1495
+        ("thagaste", "numidia"),  # #5 CIL VIII 5142
+        ("calama", "africa"),  # #6,7 CIL VIII 5365, 5366
+        ("ziqua", "africa"),  # #8 CIL VIII 10523
+        ("muzuca", "africa"),  # #9 CIL VIII 12058
+        ("uchi maius", "africa"),  # #10 CIL VIII 26273
+        ("catellum", "numidia"),  # #11 IL Alg 02-03 10120
+        ("thibaris", "africa"),  # #12 IL Afr 511
+        ("cora", "latium"),  # #13 CIL X 6529
+        ("hippo regius", "africa"),  # #14 AE 1955-151
+        ("rome", "italy"),  # Rome inscription for women
+        ("roma", "italy"),  # Alternative spelling
+        ("lanuvium", "italy"),  # Additional check for Lanuvium (Rome area)
+        ("lanuvio", "italy")   # Modern name for Lanuvium
+    ]
     
-    # 1. CILA 03-01 - Castulo, Hispania
-    if ("castulo" in modern_str or "castulo" in ancient_str) and "hispania" in province_str:
-        if "corneliae marullinae" in trans_str or "cor(neliae)" in trans_str:
+    # Check location matches
+    for location, region in women_locations:
+        if (location in modern_str or location in ancient_str) and region in (country_str + " " + province_str):
             return True
     
-    # 2. CIL VIII 937 - Munificium Seressitanum 
-    if "seressitanum" in (modern_str + ancient_str) and "africa" in country_str:
-        if "armenia auge" in trans_str and "bebenia pauliana" in trans_str:
+    # Content-based detection for women's names and specific phrases from PDF
+    women_indicators = [
+        # Women's names from PDF
+        'corneliae marullinae', 'cor(neliae) marullinae',
+        'armenia auge', 'bebenia pauliana',
+        'surdinae', 'surdin[iae',
+        'asiciae victoriae',
+        'iulia victoria', 'iul(ia victoria)',
+        'anniae aeliae', 'restitutae',
+        'bultiae hortensiae', 'surdinae antoniae',
+        'clodia macrina',
+        'valeriae marianillae', 'valeria',
+        'clodia donata', 'properti crescentis',
+        'seiae potitiae', 'consortianae',
+        'tutiae', 'lepani',
+        'vivia severa', 'phronima',
+        # Additional patterns
+        'flam(inicae)', 'flamini', 'flaminica',
+        'c(larissima) f(emina)', 'clarissima femina',
+        'matris eius', 'mater et',
+        'uxor', 'soror', 'nepti',
+        # Specific phrases from PDF
+        'pro liberalitate', 'ob liberalitatem',
+        'liberalitate sua', 'eius liberalitate',
+        'singularem liberalitatem', 'egregiam liberalitatem',
+        'assiduam liberalitatem', 'insignem liberalitatem'
+    ]
+    
+    # Check for women indicators in transcription
+    for indicator in women_indicators:
+        if indicator in trans_str:
             return True
     
-    # 3. CIL VIII 1223 - Vaga
-    if "vaga" in (modern_str + ancient_str) and "africa" in country_str:
-        if "surdinae" in trans_str or "surdin[iae" in trans_str:
-            return True
-    
-    # 4. CIL VIII 1495 - Thugga  
-    if "thugga" in (modern_str + ancient_str) and "africa" in country_str:
-        if "asiciae victoriae" in trans_str and "flaminicae" in trans_str:
-            return True
-    
-    # 5. CIL VIII 5142 - Thagaste
-    if "thagaste" in (modern_str + ancient_str) and "numidia" in province_str:
-        if "iulia victoria" in trans_str or "iul(ia victoria)" in trans_str:
-            return True
-    
-    # 6. CIL VIII 5365 - Calama (first one)
-    if "calama" in (modern_str + ancient_str) and "africa" in country_str:
-        if "anniae aeliae restitutae" in trans_str and "perp(etuae)" in trans_str:
-            return True
-    
-    # 7. CIL VIII 5366 - Calama (second one) 
-    if "calama" in (modern_str + ancient_str) and "africa" in country_str:
-        if "anniae aeliae" in trans_str and "restit[ut]ae" in trans_str and "augg(ustorum)" in trans_str:
-            return True
-    
-    # 8. CIL VIII 10523 - Ziqua
-    if "ziqua" in (modern_str + ancient_str) and "africa" in country_str:
-        if "bultiae hortensiae" in trans_str and "surdinae antoniae" in trans_str:
-            return True
-    
-    # 9. CIL VIII 12058 - Muzuca
-    if "muzuca" in (modern_str + ancient_str) and "africa" in country_str:
-        if "clodia macrina" in trans_str and "c(larissima) f(emina)" in trans_str:
-            return True
-    
-    # 10. CIL VIII 26273 - Uchi Maius
-    if "uchi maius" in (modern_str + ancient_str) and "africa" in country_str:
-        if "valeriae" in trans_str and "marianillae" in trans_str and "clarissimae fem(inae)" in trans_str:
-            return True
-    
-    # 11. IL Alg 02-03 10120 - Catellum Elefantum
-    if ("catellum" in (modern_str + ancient_str) or "elefantum" in (modern_str + ancient_str)) and "numidia" in province_str:
-        if "clodia donata" in trans_str and "properti crescentis" in trans_str:
-            return True
-    
-    # 12. IL Afr 511 - Thibaris
-    if "thibaris" in (modern_str + ancient_str) and "africa" in country_str:
-        if "seiae potitiae" in trans_str and "consortianae" in trans_str:
-            return True
-    
-    # 13. CIL X 6529 - Cora
-    if "cora" in (modern_str + ancient_str) and ("latium" in province_str or "campania" in province_str):
-        if "tutiae" in trans_str and "lepani" in trans_str:
-            return True
-    
-    # 14. AE 1955-151 - Hippo Regius
-    if "hippo regius" in (modern_str + ancient_str) and "africa" in country_str:
-        if "vivia se[vera]" in trans_str or ("vivia" in trans_str and "phronima" in trans_str):
-            return True
-    
-    # 15. Rome/Lanuvium inscription (the additional one you mentioned)
-    if ("rome" in modern_str or "roma" in modern_str or "lanuvium" in ancient_str or "lanuvio" in modern_str) and "italy" in country_str:
-        # Look for specific women-related liberalitas content
-        if ("liberalita" in trans_str and any(indicator in trans_str for indicator in [
-            "caesenni", "pompeius", "diana", "antinoi", "collegio", "collegium"
-        ])):
+    # HD number patterns (some women inscriptions might have specific HD numbers)
+    if 'hd' in hd_str:
+        # Look for specific patterns that might indicate women-related inscriptions
+        # This is a fallback check
+        women_content_patterns = ['femina', 'matr', 'uxor', 'filia', 'soror']
+        if any(pattern in trans_str for pattern in women_content_patterns):
             return True
     
     return False
