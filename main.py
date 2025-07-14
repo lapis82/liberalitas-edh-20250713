@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Title and description
-st.title("🏛️ Liberalita EDH Inscriptions")
+st.title("🏛️ *Liberalitas* EDH Inscriptions")
 st.markdown("Explore inscriptions containing *Liberalitas* from the Epigraphic Database Heidelberg")
 
 # Load data function
@@ -65,7 +65,7 @@ if df is not None:
     tab1, tab2, tab3 = st.tabs(["📍 Location Map", "📜 Transcriptions", "📊 Statistics"])
     
     with tab1:
-        st.header("Geographic Distribution of Liberalita Inscriptions")
+        st.header("Geographic Distribution of *Liberalitas* Inscriptions")
         
         # Clean and process location data with country information
         location_data = []
@@ -124,7 +124,7 @@ if df is not None:
                             'longitude': False
                         },
                         zoom=3,
-                        title="Geographic Distribution of Liberalita Inscriptions"
+                        title="Geographic Distribution of *Liberalitas* Inscriptions"
                     )
                     
                     # Make hover box transparent and improve styling
