@@ -15,7 +15,7 @@ st.set_page_config(
 
 # Title and description
 st.title("🏛️ Liberalita EDH Inscriptions")
-st.markdown("Explore inscriptions containing 'liberalita' from the Epigraphic Database Heidelberg")
+st.markdown("Explore inscriptions containing *Liberalitas* from the Epigraphic Database Heidelberg")
 
 # Load data function
 @st.cache_data
