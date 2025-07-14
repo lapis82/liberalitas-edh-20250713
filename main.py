@@ -7,14 +7,14 @@ import re
 
 # Set page configuration
 st.set_page_config(
-    page_title="Liberalita EDH Inscriptions",
+    page_title="*Liberalitas* EDH Inscriptions",
     page_icon="🏛️",
     layout="wide"
 )
 
 # Title and description
-st.title("🏛️ Liberalita EDH Inscriptions")
-st.markdown("Explore inscriptions containing 'liberalita' from the Epigraphic Database Heidelberg")
+st.title("🏛️ *Liberalitas* EDH Inscriptions")
+st.markdown("Explore inscriptions containing *liberalitas* from the Epigraphic Database Heidelberg")
 
 # Load data function
 @st.cache_data
@@ -28,7 +28,6 @@ def load_data(uploaded_file):
         # Note: pandas uses 0-based indexing, so line 30 is index 29, line 68 is index 67
         if len(df) > 29 and (pd.isna(df.iloc[29]['modern find spot']) or df.iloc[29]['modern find spot'] == ''):
             df.at[29, 'modern find spot'] = df.iloc[29]['ancient find spot']
-        if len(df) > 67 and (pd.isna(df.iloc[67]['modern find spot']) or df.iloc[67]['modern find spot'] == ''):
             df.at[67, 'modern find spot'] = df.iloc[67]['ancient find spot']
         
         return df
@@ -36,7 +35,7 @@ def load_data(uploaded_file):
         st.error(f"Error loading data: {str(e)}")
         return None
 
-# Define the special inscriptions from the PDF (women-related liberalitas inscriptions)
+# Define the special inscriptions from the PDF (women-related *liberalitas* inscriptions)
 @st.cache_data
 def get_women_inscriptions():
     """Return list of inscription IDs that are related to women from the PDF"""
@@ -257,7 +256,7 @@ if df is not None:
                             'General Liberalitas': 'blue'
                         },
                         zoom=3,
-                        title="Geographic Distribution of Liberalita Inscriptions"
+                        title="Geographic Distribution of *Liberalitas* Inscriptions"
                     )
                     
                     # Make hover box transparent and improve styling
@@ -410,8 +409,8 @@ if df is not None:
             st.warning("No transcription data available in 'transcription' column.")
     
     with tab3:
-        st.header("👩 Women's Liberalitas Inscriptions")
-        st.markdown("**Special collection based on research about women and liberalitas**")
+        st.header("👩 Women's *Liberalitas* Inscriptions")
+        st.markdown("**Special collection based on research about women and *liberalitas***")
         
         # Filter for women-related inscriptions
         women_inscriptions = []
@@ -428,7 +427,7 @@ if df is not None:
         
         if women_inscriptions:
             st.subheader(f"Found {len(women_inscriptions)} Women-Related Inscriptions")
-            st.markdown("These inscriptions are highlighted in **red** on the map and relate to women's liberalitas activities.")
+            st.markdown("These inscriptions are highlighted in **red** on the map and relate to women's *liberalitas* activities.")
             
             # Display women's inscriptions with special formatting
             for idx, (original_idx, row) in enumerate(women_inscriptions, 1):
