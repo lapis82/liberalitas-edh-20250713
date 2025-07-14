@@ -64,13 +64,23 @@ if df is not None:
     tab1, tab2, tab3 = st.tabs(["📍 Location Map", "📜 Transcriptions", "📊 Statistics"])
     
     with tab1:
-        st.header("Geographic Distribution of inscriptions including the word 'Liberalitas'")
+        st.header("Geographic Distribution of Liberalita Inscriptions")
         
-        # Clean and process location data
-        locations = df['modern find spot'].dropna().str.strip()
-        locations = locations[locations != '']
+        # Clean and process location data with country information
+        location_data = []
+        for idx, row in df.iterrows():
+            modern_spot = row.get('modern find spot')
+            country = row.get('country', '')
+            
+            if pd.notna(modern_spot) and str(modern_spot).strip() != '':
+                # Combine location with country for better display
+                if pd.notna(country) and str(country).strip() != '':
+                    location_display = f"{modern_spot} ({country})"
+                else:
+                    location_display = str(modern_spot)
+                location_data.append(location_display)
         
-        if len(locations) > 0:
+        if len(location_data) > 0:
             # Create geographic map if coordinates are available
             if 'coordinates (lat,lng)' in df.columns:
                 st.subheader("Geographic Map of Inscriptions")
@@ -99,7 +109,7 @@ if df is not None:
                 if map_data:
                     map_df = pd.DataFrame(map_data)
                     
-                    # Create the map
+                    # Create the map with transparent hover boxes
                     fig_map = px.scatter_mapbox(
                         map_df,
                         lat='latitude',
@@ -116,10 +126,26 @@ if df is not None:
                         title="Geographic Distribution of Liberalita Inscriptions"
                     )
                     
+                    # Make hover box transparent and improve styling
                     fig_map.update_layout(
                         mapbox_style="open-street-map",
                         height=600,
-                        margin={"r":0,"t":0,"l":0,"b":0}
+                        margin={"r":0,"t":0,"l":0,"b":0},
+                        hoverlabel=dict(
+                            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent white background
+                            bordercolor="rgba(0,0,0,0.3)",    # Light border
+                            font_size=12,
+                            font_family="Arial"
+                        )
+                    )
+                    
+                    # Update hover template for better formatting
+                    fig_map.update_traces(
+                        hovertemplate="<b>%{hovertext}</b><br>" +
+                                      "Ancient: %{customdata[0]}<br>" +
+                                      "Country: %{customdata[1]}<br>" +
+                                      "Transcription: %{customdata[2]}<br>" +
+                                      "<extra></extra>"  # This removes the default box
                     )
                     
                     st.plotly_chart(fig_map, use_container_width=True)
@@ -129,8 +155,8 @@ if df is not None:
                 else:
                     st.warning("No valid coordinate data found for mapping")
             
-            # Create a simple frequency map
-            location_counts = Counter(locations)
+            # Create a frequency chart with country information
+            location_counts = Counter(location_data)
             
             # Create a DataFrame for visualization
             location_df = pd.DataFrame(list(location_counts.items()), 
