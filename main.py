@@ -36,6 +36,66 @@ def load_data(uploaded_file):
         st.error(f"Error loading data: {str(e)}")
         return None
 
+# Define the special inscriptions from the PDF (women-related liberalitas inscriptions)
+@st.cache_data
+def get_women_inscriptions():
+    """Return list of inscription IDs that are related to women from the PDF"""
+    # Based on the PDF data, these are the inscription references
+    women_inscriptions = [
+        "CILA 03-01",  # Hispania citerior (Castulo)
+        "CIL VIII 937",  # Africa proconsularis (Munificium Seressitanum)
+        "CIL VIII 1223",  # Africa proconsularis (Vaga)
+        "CIL VIII 1495",  # Africa proconsularis (Thugga)
+        "CIL VIII 5142",  # Numidia (Thagaste)
+        "CIL VIII 5365",  # Africa proconsularis (Calama)
+        "CIL VIII 5366",  # Africa proconsularis (Calama)
+        "CIL VIII 10523",  # Africa proconsularis (Ziqua)
+        "CIL VIII 12058",  # Africa proconsularis (Muzuca)
+        "CIL VIII 26273",  # Africa proconsularis (Uchi Maius)
+        "IL Alg 02-03 10120",  # Numidia (Catellum Elefantum)
+        "IL Afr 511",  # Africa proconsularis (Thibaris)
+        "CIL X 6529",  # Latium et Campania (Cora)
+        "AE 1955-151"  # Africa proconsularis (Hippo Regius)
+    ]
+    return women_inscriptions
+
+def is_women_inscription(hd_no, transcription):
+    """Check if this inscription is one of the women-related inscriptions from PDF"""
+    women_refs = get_women_inscriptions()
+    
+    # Try to match based on common patterns in the transcription or reference
+    for ref in women_refs:
+        # Check if any part of the reference appears in the transcription or HD number
+        if ref in str(transcription) or any(part in str(transcription) for part in ref.split() if len(part) > 3):
+            return True
+    
+    # Additional checks based on content patterns from the PDF
+    if pd.notna(transcription):
+        transcription_str = str(transcription).lower()
+        # Look for specific women's names or phrases from the PDF
+        women_indicators = [
+            'corneliae marullinae',
+            'armenia auge',
+            'bebenia pauliana',
+            'surdinae',
+            'asiciae victoriae',
+            'iulia victoria',
+            'anniae aeliae',
+            'bultiae hortensiae',
+            'clodia macrina',
+            'valeriae marianillae',
+            'clodia donata',
+            'seiae potitiae',
+            'tutiae',
+            'vivia severa'
+        ]
+        
+        for indicator in women_indicators:
+            if indicator in transcription_str:
+                return True
+    
+    return False
+
 # File upload widget
 st.sidebar.header("📁 Upload Data")
 uploaded_file = st.sidebar.file_uploader(
@@ -52,17 +112,19 @@ if uploaded_file is not None:
         st.sidebar.success(f"✅ File loaded successfully! ({len(df)} rows)")
         
         # Basic info about the dataset
+        women_count = sum(is_women_inscription(row.get('hd-no.', ''), row.get('transcription', '')) for _, row in df.iterrows())
         st.sidebar.info(f"📊 Dataset Overview\n"
                        f"• Total inscriptions: {len(df)}\n"
                        f"• With locations: {len(df['modern find spot'].dropna())}\n"
                        f"• With transcriptions: {len(df['transcription'].dropna())}\n"
-                       f"• Countries: {len(df['country'].dropna().unique())}")
+                       f"• Countries: {len(df['country'].dropna().unique())}\n"
+                       f"• 👩 Women-related: {women_count}")
 else:
     st.info("👈 Please upload your CSV file using the sidebar to get started!")
 
 if df is not None:
-    # Main content area - only two tabs now
-    tab1, tab2 = st.tabs(["📍 Location Map", "📜 Transcriptions"])
+    # Main content area - now three tabs including women's inscriptions
+    tab1, tab2, tab3 = st.tabs(["📍 Location Map", "📜 Transcriptions", "👩 Women's Liberalitas"])
     
     with tab1:
         st.header("Geographic Distribution of Liberalita Inscriptions")
@@ -96,13 +158,18 @@ if df is not None:
                             lat, lng = coords.split(',')
                             lat, lng = float(lat.strip()), float(lng.strip())
                             
+                            # Check if this is a women-related inscription
+                            is_women = is_women_inscription(row.get('hd-no.', ''), row.get('transcription', ''))
+                            
                             map_data.append({
                                 'latitude': lat,
                                 'longitude': lng,
                                 'location': row.get('modern find spot', 'Unknown'),
                                 'ancient_location': row.get('ancient find spot', 'Unknown'),
                                 'country': row.get('country', 'Unknown'),
-                                'transcription': str(row.get('transcription', ''))[:100] + '...' if len(str(row.get('transcription', ''))) > 100 else str(row.get('transcription', ''))
+                                'transcription': str(row.get('transcription', ''))[:100] + '...' if len(str(row.get('transcription', ''))) > 100 else str(row.get('transcription', '')),
+                                'is_women': is_women,
+                                'category': 'Women-related Liberalitas' if is_women else 'General Liberalitas'
                             })
                         except:
                             continue
@@ -110,7 +177,7 @@ if df is not None:
                 if map_data:
                     map_df = pd.DataFrame(map_data)
                     
-                    # Create the map with transparent hover boxes
+                    # Create the map with different colors for women vs general inscriptions
                     fig_map = px.scatter_mapbox(
                         map_df,
                         lat='latitude',
@@ -121,7 +188,14 @@ if df is not None:
                             'country': True,
                             'transcription': True,
                             'latitude': False,
-                            'longitude': False
+                            'longitude': False,
+                            'is_women': False,
+                            'category': False
+                        },
+                        color='category',
+                        color_discrete_map={
+                            'Women-related Liberalitas': 'red',
+                            'General Liberalitas': 'blue'
                         },
                         zoom=3,
                         title="Geographic Distribution of Liberalita Inscriptions"
@@ -152,7 +226,9 @@ if df is not None:
                     st.plotly_chart(fig_map, use_container_width=True)
                     
                     # Show map statistics
-                    st.info(f"📍 Showing {len(map_df)} inscriptions with coordinate data")
+                    women_count = len(map_df[map_df['is_women'] == True])
+                    total_count = len(map_df)
+                    st.info(f"📍 Showing {total_count} inscriptions with coordinate data | 🔴 {women_count} women-related | 🔵 {total_count - women_count} general")
                 else:
                     st.warning("No valid coordinate data found for mapping")
             
@@ -273,6 +349,115 @@ if df is not None:
                         st.markdown(highlighted, unsafe_allow_html=True)
         else:
             st.warning("No transcription data available in 'transcription' column.")
+    
+    with tab3:
+        st.header("👩 Women's Liberalitas Inscriptions")
+        st.markdown("**Special collection based on research about women and liberalitas**")
+        
+        # Filter for women-related inscriptions
+        women_inscriptions = []
+        for idx, row in df.iterrows():
+            if is_women_inscription(row.get('hd-no.', ''), row.get('transcription', '')):
+                women_inscriptions.append((idx, row))
+        
+        if women_inscriptions:
+            st.subheader(f"Found {len(women_inscriptions)} Women-Related Inscriptions")
+            st.markdown("These inscriptions are highlighted in **red** on the map and relate to women's liberalitas activities.")
+            
+            # Display women's inscriptions with special formatting
+            for idx, (original_idx, row) in enumerate(women_inscriptions, 1):
+                # Create title with location info
+                title_parts = []
+                if pd.notna(row.get('modern find spot')) and row.get('modern find spot') != '':
+                    title_parts.append(row.get('modern find spot'))
+                if pd.notna(row.get('country')) and row.get('country') != '':
+                    title_parts.append(row.get('country'))
+                
+                title = f"🔴 Women's Inscription {idx}"
+                if title_parts:
+                    title += f" - {', '.join(title_parts)}"
+                
+                with st.expander(title, expanded=False):
+                    # Create columns for better layout
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write("**Location Information:**")
+                        if pd.notna(row.get('modern find spot')):
+                            st.write("Modern:", row.get('modern find spot'))
+                        if pd.notna(row.get('ancient find spot')):
+                            st.write("Ancient:", row.get('ancient find spot'))
+                        if pd.notna(row.get('country')):
+                            st.write("Country:", row.get('country'))
+                    
+                    with col2:
+                        st.write("**Additional Details:**")
+                        if pd.notna(row.get('province / Italic region')):
+                            st.write("Province:", row.get('province / Italic region'))
+                        if pd.notna(row.get('chronological data')):
+                            st.write("Date:", row.get('chronological data'))
+                        if pd.notna(row.get('type of monument')):
+                            st.write("Monument:", row.get('type of monument'))
+                    
+                    with col3:
+                        st.write("**Reference:**")
+                        if pd.notna(row.get('hd-no.')):
+                            st.write("HD No.:", row.get('hd-no.'))
+                        if pd.notna(row.get('material')):
+                            st.write("Material:", row.get('material'))
+                    
+                    # Full transcription with highlighting
+                    st.write("**Complete Transcription:**")
+                    if pd.notna(row.get('transcription')):
+                        transcription = str(row.get('transcription'))
+                        # Highlight liberalita in red
+                        highlighted = re.sub(r'(liberalita[e]?)', r'<span style="color: red; font-weight: bold;">\1</span>', 
+                                           transcription, flags=re.IGNORECASE)
+                        st.markdown(highlighted, unsafe_allow_html=True)
+                        
+                        # Show raw text in a code block for copying
+                        with st.expander("📋 Raw text (for copying)"):
+                            st.code(transcription, language=None)
+                    else:
+                        st.write("No transcription available")
+                    
+                    # Commentary if available
+                    if pd.notna(row.get('commentary')):
+                        st.write("**Commentary:**")
+                        st.write(row.get('commentary'))
+            
+            # Summary statistics for women's inscriptions
+            st.subheader("📊 Women's Inscriptions Summary")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Count by country
+                countries = [row.get('country') for _, row in women_inscriptions if pd.notna(row.get('country'))]
+                country_counts = Counter(countries)
+                if country_counts:
+                    st.write("**Distribution by Country:**")
+                    for country, count in country_counts.most_common():
+                        st.write(f"• {country}: {count}")
+            
+            with col2:
+                # Count by province
+                provinces = [row.get('province / Italic region') for _, row in women_inscriptions if pd.notna(row.get('province / Italic region'))]
+                province_counts = Counter(provinces)
+                if province_counts:
+                    st.write("**Distribution by Province:**")
+                    for province, count in province_counts.most_common():
+                        st.write(f"• {province}: {count}")
+        
+        else:
+            st.info("No women-related liberalitas inscriptions found in the current dataset.")
+            st.markdown("""
+            **Expected inscriptions from research:**
+            - CILA 03-01 (Hispania citerior - Castulo)
+            - CIL VIII series (Africa proconsularis)
+            - IL Alg series (Numidia)
+            - CIL X 6529 (Latium et Campania)
+            - AE 1955-151 (Africa proconsularis)
+            """)
 
 else:
     st.markdown("""
