@@ -96,24 +96,13 @@ if df is not None:
                             lat, lng = coords.split(',')
                             lat, lng = float(lat.strip()), float(lng.strip())
                             
-                            # Get full transcription and highlight liberalita in red
-                            full_transcription = str(row.get('transcription', ''))
-                            # Use HTML to color liberalita red
-                            highlighted_transcription = re.sub(
-                                r'(liberalita[e]?)', 
-                                r'<span style="color: red; font-weight: bold;">\1</span>', 
-                                full_transcription, 
-                                flags=re.IGNORECASE
-                            )
-                            
                             map_data.append({
                                 'latitude': lat,
                                 'longitude': lng,
                                 'location': row.get('modern find spot', 'Unknown'),
                                 'ancient_location': row.get('ancient find spot', 'Unknown'),
                                 'country': row.get('country', 'Unknown'),
-                                'province': row.get('province / Italic region', 'Unknown'),
-                                'full_transcription': highlighted_transcription
+                                'transcription': str(row.get('transcription', ''))[:100] + '...' if len(str(row.get('transcription', ''))) > 100 else str(row.get('transcription', ''))
                             })
                         except:
                             continue
@@ -121,39 +110,43 @@ if df is not None:
                 if map_data:
                     map_df = pd.DataFrame(map_data)
                     
-                    # Create the map with full transcriptions
+                    # Create the map with transparent hover boxes
                     fig_map = px.scatter_mapbox(
                         map_df,
                         lat='latitude',
                         lon='longitude',
                         hover_name='location',
+                        hover_data={
+                            'ancient_location': True,
+                            'country': True,
+                            'transcription': True,
+                            'latitude': False,
+                            'longitude': False
+                        },
                         zoom=3,
                         title="Geographic Distribution of Liberalita Inscriptions"
                     )
                     
-                    # Customize hover template with full transcription
-                    fig_map.update_traces(
-                        hovertemplate="<b>%{hovertext}</b><br><br>" +
-                                      "<b>Ancient:</b> %{customdata[0]}<br>" +
-                                      "<b>Country:</b> %{customdata[1]}<br>" +
-                                      "<b>Province:</b> %{customdata[2]}<br><br>" +
-                                      "<b>Full Transcription:</b><br>%{customdata[3]}<br>" +
-                                      "<extra></extra>",
-                        customdata=map_df[['ancient_location', 'country', 'province', 'full_transcription']].values
-                    )
-                    
-                    # Make hover box semi-transparent and wider for full text
+                    # Make hover box transparent and improve styling
                     fig_map.update_layout(
                         mapbox_style="open-street-map",
                         height=600,
                         margin={"r":0,"t":0,"l":0,"b":0},
                         hoverlabel=dict(
-                            bgcolor="rgba(255,255,255,0.9)",
-                            bordercolor="rgba(0,0,0,0.3)",
-                            font_size=11,
-                            font_family="Arial",
-                            align="left"
+                            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent white background
+                            bordercolor="rgba(0,0,0,0.3)",    # Light border
+                            font_size=12,
+                            font_family="Arial"
                         )
+                    )
+                    
+                    # Update hover template for better formatting
+                    fig_map.update_traces(
+                        hovertemplate="<b>%{hovertext}</b><br>" +
+                                      "Ancient: %{customdata[0]}<br>" +
+                                      "Country: %{customdata[1]}<br>" +
+                                      "Transcription: %{customdata[2]}<br>" +
+                                      "<extra></extra>"  # This removes the default box
                     )
                     
                     st.plotly_chart(fig_map, use_container_width=True)
